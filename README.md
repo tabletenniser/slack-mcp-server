@@ -46,6 +46,7 @@ You need to set the following environment variables:
 - `SLACK_BOT_TOKEN`: Slack Bot User OAuth Token
 - `SLACK_USER_TOKEN`: Slack User OAuth Token (required for some features like message search)
 - `SLACK_SAFE_SEARCH` (optional): When set to `true`, automatically excludes private channels, DMs, and group DMs from search results. This is enforced server-side and cannot be overridden by clients.
+- `USE_USER_TOKEN` (optional): When set to `true`, uses the user token for all operations instead of just search operations. This provides broader access but may have different rate limits.
 
 You can also create a `.env` file to set these environment variables:
 
@@ -53,6 +54,7 @@ You can also create a `.env` file to set these environment variables:
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_USER_TOKEN=xoxp-your-user-token
 SLACK_SAFE_SEARCH=true  # Optional: Enable safe search mode
+USE_USER_TOKEN=true     # Optional: Use user token for all operations
 ```
 
 ### Usage
@@ -98,7 +100,8 @@ node node_modules/.bin/slack-mcp-server -port 3000
       "NPM_CONFIG_//npm.pkg.github.com/:_authToken": "<your-github-pat>",
       "SLACK_BOT_TOKEN": "<your-bot-token>",
       "SLACK_USER_TOKEN": "<your-user-token>",
-      "SLACK_SAFE_SEARCH": "true"
+      "SLACK_SAFE_SEARCH": "true",
+      "USE_USER_TOKEN": "true"
     }
   }
 }
@@ -108,7 +111,7 @@ node node_modules/.bin/slack-mcp-server -port 3000
 
 Start the server:
 ```bash
-SLACK_BOT_TOKEN=<your-bot-token> SLACK_USER_TOKEN=<your-user-token> npx @ubie-oss/slack-mcp-server -port 3000
+SLACK_BOT_TOKEN=<your-bot-token> SLACK_USER_TOKEN=<your-user-token> USE_USER_TOKEN=true npx @ubie-oss/slack-mcp-server -port 3000
 ```
 
 Connect to: `http://localhost:3000/mcp`

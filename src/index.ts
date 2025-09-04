@@ -49,8 +49,16 @@ if (!process.env.SLACK_USER_TOKEN) {
   process.exit(1);
 }
 
-const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
+// Determine which token to use for main operations
+const useUserToken = process.env.USE_USER_TOKEN === 'true';
+const slackClient = new WebClient(useUserToken ? process.env.SLACK_USER_TOKEN : process.env.SLACK_BOT_TOKEN);
 const userClient = new WebClient(process.env.SLACK_USER_TOKEN);
+
+if (useUserToken) {
+  console.error(
+    'Using user token for all operations: This provides broader access but may have different rate limits'
+  );
+}
 
 // Safe search mode to exclude private channels and DMs
 const safeSearchMode = process.env.SLACK_SAFE_SEARCH === 'true';
