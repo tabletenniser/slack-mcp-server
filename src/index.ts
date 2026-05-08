@@ -51,7 +51,9 @@ if (!process.env.SLACK_USER_TOKEN) {
 
 // Determine which token to use for main operations
 const useUserToken = process.env.USE_USER_TOKEN === 'true';
-const slackClient = new WebClient(useUserToken ? process.env.SLACK_USER_TOKEN : process.env.SLACK_BOT_TOKEN);
+const slackClient = new WebClient(
+  useUserToken ? process.env.SLACK_USER_TOKEN : process.env.SLACK_BOT_TOKEN
+);
 const userClient = new WebClient(process.env.SLACK_USER_TOKEN);
 
 if (useUserToken) {
@@ -66,6 +68,31 @@ if (safeSearchMode) {
   console.error(
     'Safe search mode enabled: Private channels and DMs will be excluded from search results'
   );
+}
+
+// Throws when SLACK_SAFE_SEARCH is on and the channel is private, a DM, or a
+// multi-party DM. Uses the user token because it has the broadest visibility
+// for `conversations.info` lookups.
+async function assertChannelAllowed(channelId: string): Promise<void> {
+  if (!safeSearchMode) return;
+  const info = await userClient.conversations.info({ channel: channelId });
+  if (!info.ok || !info.channel) {
+    throw new Error(
+      `Safe search check failed to verify channel ${channelId}: ${
+        info.error || 'unknown error'
+      }`
+    );
+  }
+  const ch = info.channel as {
+    is_private?: boolean;
+    is_im?: boolean;
+    is_mpim?: boolean;
+  };
+  if (ch.is_private || ch.is_im || ch.is_mpim) {
+    throw new Error(
+      `Safe search mode enabled: access to private channels and DMs is blocked (${channelId})`
+    );
+  }
 }
 
 // Parse command line arguments
@@ -212,6 +239,7 @@ function createServer(): Server {
 
         case 'slack_post_message': {
           const args = PostMessageRequestSchema.parse(request.params.arguments);
+          await assertChannelAllowed(args.channel_id);
           const response = await slackClient.chat.postMessage({
             channel: args.channel_id,
             text: args.text,
@@ -228,6 +256,7 @@ function createServer(): Server {
           const args = ReplyToThreadRequestSchema.parse(
             request.params.arguments
           );
+          await assertChannelAllowed(args.channel_id);
           const response = await slackClient.chat.postMessage({
             channel: args.channel_id,
             thread_ts: args.thread_ts,
@@ -244,6 +273,7 @@ function createServer(): Server {
         }
         case 'slack_add_reaction': {
           const args = AddReactionRequestSchema.parse(request.params.arguments);
+          await assertChannelAllowed(args.channel_id);
           const response = await slackClient.reactions.add({
             channel: args.channel_id,
             timestamp: args.timestamp,
@@ -261,6 +291,7 @@ function createServer(): Server {
           const args = GetChannelHistoryRequestSchema.parse(
             request.params.arguments
           );
+          await assertChannelAllowed(args.channel_id);
           const response = await slackClient.conversations.history({
             channel: args.channel_id,
             limit: args.limit,
@@ -280,6 +311,7 @@ function createServer(): Server {
           const args = GetThreadRepliesRequestSchema.parse(
             request.params.arguments
           );
+          await assertChannelAllowed(args.channel_id);
           const response = await slackClient.conversations.replies({
             channel: args.channel_id,
             ts: args.thread_ts,
@@ -360,6 +392,7 @@ function createServer(): Server {
           let query = parsedParams.query || '';
 
           if (parsedParams.in_channel) {
+            await assertChannelAllowed(parsedParams.in_channel);
             // Resolve channel name from ID
             const channelInfo = await slackClient.conversations.info({
               channel: parsedParams.in_channel,
